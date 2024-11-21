@@ -76,9 +76,20 @@ public class TwoDimensionalKDTree {
         return node;
     }
 
+    void addAllLeafs(KDNode node, List<Point> points) {
+        if (node == null) {
+            return;
+        }
+        addAllLeafs(node.left, points);
+        if (node.isLeaf()) {
+            points.add(node.point);
+        }
+        addAllLeafs(node.right, points);
+    }
+
     // Time Complexity = 0klogn
     void findPoints(KDNode node, Window window, List<Point> points,
-                     boolean checkXCoordinate) {
+                    Window region, boolean checkXCoordinate) {
         if (node == null) {
             return;
         }
@@ -88,35 +99,30 @@ public class TwoDimensionalKDTree {
             }
             return;
         }
-        if (checkXCoordinate) {
-            if (window.getEndX() < node.point.getX()) {
-                findPoints(node.left, window, points, false);
-            } else if (window.getStartX() > node.point.getX()) {
-                findPoints(node.right, window, points, false);
-            } else {
-                // node is in the window so check both left and right subtrees.
-                findPoints(node.left, window, points, false);
-                findPoints(node.right, window, points, false);
-            }
-        } else {
-            if (window.getEndY() < node.point.getY()) {
-                findPoints(node.left, window, points, true);
-            } else if (window.getStartY() > node.point.getY()) {
-                findPoints(node.right, window, points, true);
-            } else {
-                // node is in the window.
-                findPoints(node.left, window, points, true);
-                findPoints(node.right, window, points, true);
-            }
+        // find the region for this node.
+        Window childRegions[] = region.getRegionSplitByLine(node.point,
+                checkXCoordinate);
+        if (window.contains(childRegions[0])) {
+            addAllLeafs(node.left, points);
+        } else if (window.intersects(childRegions[0])) {
+            findPoints(node.left, window, points, childRegions[0],
+                    !checkXCoordinate);
         }
+        if (window.contains(childRegions[1])) {
+            addAllLeafs(node.right, points);
+        } else if (window.intersects(childRegions[1])) {
+            findPoints(node.right, window, points, childRegions[1],
+                    !checkXCoordinate);
+        }
+
         return;
     }
 
     public static void main(String[] args) {
         TwoDimensionalKDTree twoDimensionalKDTree =
                 new TwoDimensionalKDTree();
-        Set<Point> pointSetX = new TreeSet<>(Utils.getPointXComparator());
-        Set<Point> pointSetY = new TreeSet<>(Utils.getPointYComparator());
+        TreeSet<Point> pointSetX = new TreeSet<>(Utils.getPointXComparator());
+        TreeSet<Point> pointSetY = new TreeSet<>(Utils.getPointYComparator());
         do {
             Point point = new Point(Utils.getRandomPositiveInteger(40),
                     Utils.getRandomPositiveInteger(40));
@@ -128,15 +134,20 @@ public class TwoDimensionalKDTree {
         System.out.println("Input points::");
         Utils.print(pointsX);
         Utils.print(pointsY);
-
         // sorted the points, build the KD tree now.
         TwoDimensionalKDTree.KDNode root =
                 twoDimensionalKDTree.build(pointsX, pointsY,
                         /*splitByXCoordinate*/true);
-        Window window = new Window(3, 1, 14, 14);
+        Window window = new Window(1, 1, 14, 24);
+        System.out.println("Window " + window);
+
         System.out.println("Points returned");
         List<Point> pointsReturned = new ArrayList<>();
         twoDimensionalKDTree.findPoints(root, window, pointsReturned,
+                new Window(pointSetX.getFirst().getX(),
+                        pointSetY.getFirst().getY(),
+                        pointSetX.getLast().getX(),
+                        pointSetY.getLast().getY()),
                 /*checkXCoordinate=*/true);
         Utils.print(pointsReturned);
     }

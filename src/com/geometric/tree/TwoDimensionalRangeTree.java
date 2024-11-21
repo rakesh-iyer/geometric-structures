@@ -44,7 +44,7 @@ public class TwoDimensionalRangeTree {
         return node;
     }
 
-    void findPointsLeft(RangeNode node, Window window, List<Point> points) {
+    void findPointsInLeftSubtree(RangeNode node, Window window, List<Point> points) {
         if (node == null) {
             return;
         } else if (node.isLeaf()) {
@@ -54,15 +54,16 @@ public class TwoDimensionalRangeTree {
             return;
          }
         if (node.point.getX() >= window.getStartX()) {
-            findPointsLeft(node.left, window, points);
+            findPointsInLeftSubtree(node.left, window, points);
+            // Filter points that are within the Y coordinates for the window
             singleDimensionalRangeTree.findPoints(node.right.canonicalSet,
                     window, points, /*orderByX=*/false);
         } else {
-            findPointsLeft(node.right, window, points);
+            findPointsInLeftSubtree(node.right, window, points);
         }
     }
 
-    void findPointsRight(RangeNode node, Window window, List<Point> points) {
+    void findPointsInRightSubtree(RangeNode node, Window window, List<Point> points) {
         if (node == null) {
             return;
         } else if (node.isLeaf()) {
@@ -73,11 +74,12 @@ public class TwoDimensionalRangeTree {
         }
 
         if (node.point.getX() <= window.getEndX()) {
+            // Filter points that are within the Y coordinates for the window.
             singleDimensionalRangeTree.findPoints(node.left.canonicalSet,
                     window, points, /*orderByX=*/false);
-            findPointsRight(node.right, window, points);
+            findPointsInRightSubtree(node.right, window, points);
         } else {
-            findPointsRight(node.left, window, points);
+            findPointsInRightSubtree(node.left, window, points);
         }
     }
 
@@ -86,8 +88,8 @@ public class TwoDimensionalRangeTree {
         if (splitNode == null) {
             return;
         }
-        findPointsLeft(splitNode.left, window, points);
-        findPointsRight(splitNode.right, window, points);
+        findPointsInLeftSubtree(splitNode.left, window, points);
+        findPointsInRightSubtree(splitNode.right, window, points);
     }
 
     // Recursively build out the 2D Range Tree.

@@ -11,6 +11,23 @@ public class Utils {
             (Geometric.Point point1, Geometric.Point point2) -> {
                 if (point1.y == point2.y) {return point1.x - point2.x;}
                 else { return point1.y - point2.y;}};
+
+    static Comparator<Geometric.Interval> intervalStartComparator =
+            (Geometric.Interval interval1, Geometric.Interval interval2) -> {
+                if (interval1.getStart() == interval2.getStart()) {
+                    return interval1.getEnd() - interval2.getEnd();
+                } else {
+                    return interval1.getStart() - interval2.getStart();
+                }
+    };
+    static Comparator<Geometric.Interval> intervalEndComparator =
+            (Geometric.Interval interval1, Geometric.Interval interval2) -> {
+                if (interval1.getEnd() == interval2.getEnd()) {
+                    return interval1.getStart() - interval2.getStart();
+                } else {
+                    return interval1.getEnd() - interval2.getEnd();
+                }
+    };
     static Random random = new Random(0);
 
     public static Comparator<Geometric.Point> getPointXComparator() {
@@ -19,6 +36,14 @@ public class Utils {
 
     public static Comparator<Geometric.Point> getPointYComparator() {
         return pointYComparator;
+    }
+
+    public static Comparator<Geometric.Interval> getIntervalStartComparator() {
+        return intervalStartComparator;
+    }
+
+    public static Comparator<Geometric.Interval> getIntervalEndComparator() {
+        return intervalEndComparator;
     }
 
     public static void sort(List<Geometric.Point> points) {
