@@ -184,7 +184,7 @@ public class Geometric {
 
     }
 
-
+    // Segment tree requires support for Open and Closed Intervals.
     public static class Interval {
         int start;
         int end;
