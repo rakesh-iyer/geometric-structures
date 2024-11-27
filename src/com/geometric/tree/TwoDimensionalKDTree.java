@@ -86,7 +86,7 @@ public class TwoDimensionalKDTree {
         }
         addAllLeafs(node.right, points);
     }
-    
+
     void findPoints(KDNode node, Window window, List<Point> points,
                     Window region, boolean checkXCoordinate) {
         if (node == null) {

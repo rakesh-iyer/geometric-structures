@@ -52,7 +52,7 @@ public class TwoDimensionalRangeTree {
                 points.add(node.point);
             }
             return;
-         }
+        }
         if (node.point.getX() >= window.getStartX()) {
             findPointsInLeftSubtree(node.left, window, points);
             // Filter points that are within the Y coordinates for the window
@@ -87,6 +87,11 @@ public class TwoDimensionalRangeTree {
         RangeNode splitNode = findSplitNode(node, window);
         if (splitNode == null) {
             return;
+        } else if (splitNode.isLeaf()) {
+            /* Had missed this in the first impl. */
+            if (window.isPointInWindow(splitNode.point)) {
+                points.add(splitNode.point);
+            }
         }
         findPointsInLeftSubtree(splitNode.left, window, points);
         findPointsInRightSubtree(splitNode.right, window, points);
@@ -99,7 +104,10 @@ public class TwoDimensionalRangeTree {
         if (pointsX.isEmpty()) {
             return null;
         } else if (pointsX.size() == 1) {
-            return new RangeNode(pointsX.getFirst());
+            RangeNode node = new RangeNode(pointsX.getFirst());
+            /* Had missed this in the first impl. */
+            node.buildCanonicalSet(List.of(pointsX.getFirst()));
+            return node;
         }
 
         int medianX = Utils.median(pointsX, true);
@@ -149,7 +157,7 @@ public class TwoDimensionalRangeTree {
             seenY.add(point.getY());
             pointSetX.add(point);
             pointSetY.add(point);
-        } while (pointSetX.size() < 20);
+        } while (pointSetX.size() < 10);
         List<Point> pointsX = new ArrayList(pointSetX);
         List<Point> pointsY = new ArrayList(pointSetY);
         System.out.println("Input points::");
@@ -159,10 +167,10 @@ public class TwoDimensionalRangeTree {
         // sorted the points, build the 2D range tree now.
         RangeNode root =
                 twoDimensionalRangeTree.build(pointsX, pointsY);
-        Window window = new Window(3, 1, 22, 14);
-        System.out.println("Points returned");
+        Window window = new Window(1, 1, 20, 40);
         List<Point> pointsReturned = new ArrayList<>();
         twoDimensionalRangeTree.findPoints(root, window, pointsReturned);
+        System.out.println("Points returned");
         Utils.print(pointsReturned);
     }
 }

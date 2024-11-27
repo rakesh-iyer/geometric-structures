@@ -28,6 +28,25 @@ public class Utils {
                     return interval1.getEnd() - interval2.getEnd();
                 }
     };
+    static Comparator<Geometric.Segment> segmentStartXComparator =
+            (Geometric.Segment segment1, Geometric.Segment segment2) -> {
+                if (segment1.getStart().getX() == segment2.getStart().getX()) {
+                    return segment1.getEnd().getX() - segment2.getEnd().getX();
+                } else {
+                    return segment1.getStart().getX() -
+                            segment2.getStart().getX();
+                }
+            };
+    static Comparator<Geometric.Segment> segmentEndXComparator =
+            (Geometric.Segment segment1, Geometric.Segment segment2) -> {
+                if (segment1.getEnd().getX() == segment2.getEnd().getX()) {
+                    return segment1.getStart().getX() -
+                            segment2.getStart().getX();
+                } else {
+                    return segment1.getEnd().getX() - segment2.getEnd().getX();
+                }
+            };
+
     static Random random = new Random(0);
 
     public static Comparator<Geometric.Point> getPointXComparator() {
@@ -44,6 +63,14 @@ public class Utils {
 
     public static Comparator<Geometric.Interval> getIntervalEndComparator() {
         return intervalEndComparator;
+    }
+
+    public static Comparator<Geometric.Segment> getSegmentStartXComparator() {
+        return segmentStartXComparator;
+    }
+
+    public static Comparator<Geometric.Segment> getSegmentEndXComparator() {
+        return segmentEndXComparator;
     }
 
     public static void sort(List<Geometric.Point> points) {

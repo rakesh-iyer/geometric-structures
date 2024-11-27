@@ -188,12 +188,36 @@ public class Geometric {
     public static class Interval {
         int start;
         int end;
+        boolean closedStart = true;
+        boolean closedEnd = true;
         public Interval(int start, int end) {
             this.start = start;
             this.end = end;
         }
+        public Interval(int start, int end, boolean closedStart,
+                        boolean closedEnd) {
+            this(start, end);
+            this.closedStart = closedStart;
+            this.closedEnd = closedEnd;
+        }
+
         public String toString() {
-            return "[ " + start + " - " + end + " ]";
+            StringBuilder stringBuilder = new StringBuilder();
+            if (closedStart) {
+                stringBuilder.append("[");
+            } else {
+                stringBuilder.append("(");
+            }
+            stringBuilder.append(start);
+            stringBuilder.append("-");
+            stringBuilder.append(end);
+            if (closedEnd) {
+                stringBuilder.append("]");
+            } else {
+                stringBuilder.append(")");
+            }
+
+            return stringBuilder.toString();
         }
 
         public int getStart() {
@@ -202,6 +226,92 @@ public class Geometric {
 
         public int getEnd() {
             return end;
+        }
+
+        public boolean getClosedStart() {
+            return closedStart;
+        }
+
+        public boolean getClosedEnd() {
+            return closedEnd;
+        }
+
+        public boolean contains(Interval interval) {
+            if ((((closedStart || !interval.closedStart)
+                    && (start <= interval.start)) ||
+                    (!closedStart && start < interval.start)) &&
+                    (((closedEnd || !interval.closedEnd)
+                            && (end >= interval.end)) ||
+                    (!closedEnd && end > interval.end))) {
+                return true;
+            }
+            return false;
+        }
+
+        public boolean intersects(Interval interval) {
+            // the 2 conditions that dont intersect are.
+            // This interval ends before the given interval starts.
+            // This interval starts after the given interval ends.
+            // Every other scenario has to intersect.
+            if (((!closedEnd || !interval.closedStart) && end <= interval.start) ||
+                    (closedEnd && end < interval.start) ||
+                    ((!closedStart || !interval.closedEnd) && start >= interval.end) ||
+                    (closedStart && start > interval.end)) {
+                return false;
+            }
+            return true;
+        }
+    }
+
+    public static class Segment {
+        Point start;
+        Point end;
+
+        public Segment(int startX, int startY, int endX, int endY) {
+            this.start = new Point(startX, startY);
+            this.end = new Point(endX, endY);
+        }
+
+        public Point getStart() {
+            return start;
+        }
+
+        public Point getEnd() {
+            return end;
+        }
+
+        public Interval getXInterval() {
+            return new Interval(start.getX(), end.getX());
+        }
+
+        public String toString() {
+            return "[(" + start.getX() + "," + start.getY() + ") -- (" + end.getX() +
+                    "," + end.getY() +
+                    ")]";
+        }
+    }
+
+    public static class QueryLine {
+        int x;
+        int startY;
+        int endY;
+
+        public QueryLine(int x, int startY, int endY) {
+            this.x = x;
+            this.startY = startY;
+            this.endY = endY;
+        }
+
+        public int getX() {
+            return x;
+        }
+
+        public int getStartY() {
+            return startY;
+        }
+
+        public int getEndY() {
+            return endY;
         }
     }
 }

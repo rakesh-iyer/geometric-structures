@@ -106,6 +106,11 @@ public class SingleDimensionalRangeTree {
         RangeNode splitNode = findSplitNode(node, window, orderByX);
         if (splitNode == null) {
             return;
+        } else if (splitNode.isLeaf()) {
+            /* Missed this in the original impl. */
+            if (window.isPointInWindow(splitNode.point)) {
+                points.add(splitNode.point);
+            }
         }
         getPointsFromLeftSubtreeOfSplitNode(splitNode.left, window, points,
                 orderByX);
@@ -149,11 +154,11 @@ public class SingleDimensionalRangeTree {
         // sorted the points, build the range tree now.
         RangeNode root = singleDimensionalRangeTree.build(points,
                 /*orderByX=*/true);
-        Window window = new Window(3, 1, 13, 13);
-        System.out.println("Points returned");
+        Window window = new Window(1, 1, 20, 20);
         List<Point> pointsReturned = new ArrayList<>();
         singleDimensionalRangeTree.findPoints(root, window, pointsReturned,
                 /*orderByX=*/true);
+        System.out.println("Points returned");
         Utils.print(pointsReturned);
     }
 }
