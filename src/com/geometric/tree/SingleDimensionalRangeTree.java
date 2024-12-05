@@ -5,8 +5,9 @@ import com.geometric.util.Geometric.*;
 import com.geometric.util.Utils;
 
 public class SingleDimensionalRangeTree {
-    // We store points that only have x coordinates.
-    // Limit coordinates to integers.
+    // Node in the Range Tree.
+    // The Point is to be interpreted as single dimensional with either valid
+    // x or y coordinates.
     static class RangeNode {
         Point point;
         RangeNode left;
@@ -14,30 +15,29 @@ public class SingleDimensionalRangeTree {
         RangeNode(Point point) {
             this.point = point;
         }
-
         boolean isLeaf() {
             return left == null && right == null;
         }
     }
 
-    void addAllLeafs(RangeNode node, List<Point> points) {
-        // do inorder until you get to the leaves.
+    // We add points corresponding to the leaf nodes in order.
+    void addLeafsInorder(RangeNode node, List<Point> points) {
         if (node == null) {
             return;
         }
-        addAllLeafs(node.left, points);
+        addLeafsInorder(node.left, points);
         if (node.isLeaf()) {
             points.add(node.point);
         }
-        addAllLeafs(node.right, points);
+        addLeafsInorder(node.right, points);
     }
 
-    // All nodes we traverse will share the invariant that their x coordinate
-    // will be less than or equal to window's endX, so we only check startX.
-    private void getPointsFromLeftSubtreeOfSplitNode(RangeNode node,
-                                                     Window window,
-                                                     List<Point> points,
-                                                     boolean checkForX) {
+    // Accumulate the subtree points within the Window as we traverse through
+    // the range tree.
+    // Time complexity = On
+    private void getSubtreePointsInWindow(RangeNode node, Window window,
+                                      List<Point> points, boolean checkForX,
+                                      boolean isLeftSubtree) {
         if (node == null) {
             return;
         } else if (node.isLeaf()) {
@@ -45,53 +45,43 @@ public class SingleDimensionalRangeTree {
                 points.add(node.point);
             }
         }
-        if ((checkForX && node.point.getX() >= window.getStartX()) ||
-            (!checkForX && node.point.getY() >= window.getStartY())) {
-            getPointsFromLeftSubtreeOfSplitNode(node.left, window, points,
-                    checkForX);
-            if (node.right != null) {
-                addAllLeafs(node.right, points);
+        if (isLeftSubtree) {
+            // In left subtree of split node the x coordinate will be less
+            // than or equal to window's endX, so we check the start coordinate.
+            if ((checkForX && node.point.getX() >= window.getStartX()) ||
+                    (!checkForX && node.point.getY() >= window.getStartY())) {
+                getSubtreePointsInWindow(node.left, window, points,
+                        checkForX, isLeftSubtree);
+                addLeafsInorder(node.right, points);
+            } else {
+                getSubtreePointsInWindow(node.right, window, points,
+                        checkForX, isLeftSubtree);
             }
         } else {
-            getPointsFromLeftSubtreeOfSplitNode(node.right, window, points,
-                    checkForX);
+            // In right subtree of split node the x coordinate will be greater
+            // than or equal to window's startX, so we check the end coordinate.
+            if ((checkForX && node.point.getX() <= window.getEndX()) ||
+                    (!checkForX && node.point.getY() <= window.getEndY())) {
+                addLeafsInorder(node.left, points);
+                getSubtreePointsInWindow(node.right, window, points,
+                        checkForX, isLeftSubtree);
+            } else {
+                getSubtreePointsInWindow(node.left, window, points,
+                        checkForX, isLeftSubtree);
+            }
         }
     }
 
-    // All nodes we traverse will share the invariant that their x coordinate
-    // will be greater than or equal to window's startX, so we only check endX.
-    private void getPointsFromRightSubtreeOfSplitNode(RangeNode node,
-                                                      Window window,
-                                                      List<Point> points,
-                                                      boolean checkForX) {
-        if (node == null) {
-            return;
-        } else if (node.isLeaf()) {
-            if (window.isPointInWindow(node.point)) {
-                points.add(node.point);
-            }
-        }
-        if ((checkForX && node.point.getX() <= window.getEndX()) ||
-            (!checkForX && node.point.getY() <= window.getEndY())) {
-            if (node.left != null) {
-                addAllLeafs(node.left, points);
-            }
-            getPointsFromRightSubtreeOfSplitNode(node.right, window, points,
-                    checkForX);
-        } else {
-            getPointsFromRightSubtreeOfSplitNode(node.left, window, points,
-                    checkForX);
-        }
-    }
-
+    // Find the split node for the given range, i.e. the node where left subtree
+    // has a key with a value less than the maxima of the range, and the right
+    // subtree has a key with value greater than the minima of the range.
     RangeNode findSplitNode(RangeNode node, Window window, boolean orderByX) {
         // Either null or actual Split node found for the window in the
         // traversal of the path to the leaf.
-        if (node == null ||
-                (orderByX && node.point.getX() >= window.getStartX() &&
-                node.point.getX() <= window.getEndX()) ||
-                (!orderByX && node.point.getY() >= window.getStartY() &&
-                        node.point.getY() <= window.getEndY())) {
+        if (node == null) {
+            return null;
+        } else if ((orderByX && window.isPointInXWindow(node.point)) ||
+                (!orderByX && window.isPointInYWindow(node.point))) {
             return node;
         } else if ((orderByX && node.point.getX() >= window.getEndX())
                 || (!orderByX && node.point.getY() >= window.getEndY())) {
@@ -101,23 +91,30 @@ public class SingleDimensionalRangeTree {
         }
     }
 
+    // To find points in the given window we do the following.
+    // a. Find split node for the x interval or the y interval for the window.
+    // b. Add the node if search ends in a leaf, and it is within the window.
+    // c. Accumulate points from the left and right subtrees of the split
+    // node that are within the window.
     void findPoints(RangeNode node, Window window, List<Point> points,
                     boolean orderByX) {
         RangeNode splitNode = findSplitNode(node, window, orderByX);
         if (splitNode == null) {
             return;
         } else if (splitNode.isLeaf()) {
-            /* Missed this in the original impl. */
             if (window.isPointInWindow(splitNode.point)) {
                 points.add(splitNode.point);
             }
+            return;
         }
-        getPointsFromLeftSubtreeOfSplitNode(splitNode.left, window, points,
-                orderByX);
-        getPointsFromRightSubtreeOfSplitNode(splitNode.right, window, points,
-                orderByX);
+        getSubtreePointsInWindow(splitNode.left, window, points, orderByX,
+                /*isLeftSubtree*/true);
+        getSubtreePointsInWindow(splitNode.right, window, points, orderByX,
+                /*isLeftSubtree*/false);
     }
 
+    // Build a range tree from the given list of points and the relevant
+    // coordinate dimension.
     RangeNode build(List<Point> points, boolean orderByX) {
         if (points.isEmpty()) {
             return null;
@@ -142,7 +139,6 @@ public class SingleDimensionalRangeTree {
     public static void main(String[] args) {
         SingleDimensionalRangeTree singleDimensionalRangeTree =
                 new SingleDimensionalRangeTree();
-
         Set<Point> pointSet = new TreeSet<>(Utils.getPointXComparator());
         do {
             int coordinate = Utils.getRandomPositiveInteger(20);
@@ -154,7 +150,7 @@ public class SingleDimensionalRangeTree {
         // sorted the points, build the range tree now.
         RangeNode root = singleDimensionalRangeTree.build(points,
                 /*orderByX=*/true);
-        Window window = new Window(1, 1, 20, 20);
+        Window window = new Window(7, 7, 20, 20);
         List<Point> pointsReturned = new ArrayList<>();
         singleDimensionalRangeTree.findPoints(root, window, pointsReturned,
                 /*orderByX=*/true);

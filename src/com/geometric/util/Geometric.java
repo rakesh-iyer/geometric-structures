@@ -1,9 +1,5 @@
 package com.geometric.util;
 
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-
 public class Geometric {
     public static class Point {
         int x;
@@ -49,9 +45,14 @@ public class Geometric {
         public int getEndY() {
             return endY;
         }
+        public boolean isPointInXWindow(Point point) {
+            return point.x >= startX && point.x <= endX;
+        }
+        public boolean isPointInYWindow(Point point) {
+            return point.y >= startY && point.y <= endY;
+        }
         public boolean isPointInWindow(Point point) {
-            return point.x >= startX && point.x <= endX &&
-                    point.y >= startY && point.y <= endY;
+            return isPointInXWindow(point) && isPointInYWindow(point);
         }
 
         public String toString() {
@@ -312,6 +313,10 @@ public class Geometric {
 
         public int getEndY() {
             return endY;
+        }
+
+        public String toString() {
+            return "[(" + x + "," + startY + ") -- (" + x + "," + endY + ")]";
         }
     }
 }

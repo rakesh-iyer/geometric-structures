@@ -1,27 +1,65 @@
 package com.geometric.tree;
 
 
-// Use exact imports.
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.List;
+import java.util.Set;
 import com.geometric.util.Geometric.*;
 import com.geometric.util.Utils;
 
 public class SegmentTree {
-    // We use a single dimensional range tree to address the queries.
+    // A segment tree is a data structure built from the Locus principle.
+    // It efficiently queries arbitrary segments that intersect a window.
+    //
+    // The idea is as follows:
+    //
+    // Build Base Tree
+    // ===============
+    // a. Start with Elementary intervals built from an ordered set of segment
+    // start and end points that correspond to the leaf nodes of the tree.
+    // b. Build the higher level nodes by merging pairs of lower level nodes
+    // and build the entire tree in bottom up manner. Every interval of an
+    // internal node corresponds to the merged intervals of its child nodes.
+    //
+    // Add Input Intervals
+    // ===================
+    // For each interval do the following::
+    // a. Starting from segment tree's root, find the highest level node whose
+    // interval is completely covered by the input interval. Add the input
+    // interval to this node and stop the search.
+    // b. If the node's interval is not covered by the input interval, find
+    // if the input interval intersects the left child node's interval and if
+    // so repeat the process with the left node. Similarly check if the input
+    // interval intersects the right child node's interval and if so repeat
+    // the process with the right node.
+    //
+
+    // We use a singleton dimensional range tree to address the queries.
     static SingleDimensionalRangeTree singleDimensionalRangeTree =
             new SingleDimensionalRangeTree();
     static class SegmentNode {
-        Interval mid;
+        Interval midInterval;
         SingleDimensionalRangeTree.RangeNode canonicalSet;
         Map<Point, Segment> pointToSegmentMap = new HashMap<>();
         SegmentNode left;
         SegmentNode right;
         List<Segment> associatedSegments = new ArrayList<>();
-        SegmentNode(Interval mid) {
-            this.mid = mid;
+        SegmentNode(Interval midInterval) {
+            this.midInterval = midInterval;
         }
     }
 
+    // Add elementary intervals built from sorted set of the start points and
+    // end points of the segments.
+    // The list of elementary intervals are ::
+    // a. An open interval between a point and its neighbor in the sorted list.
+    // b. A closed interval containing each point.
+    // c. An open interval between -infinity and the first point.
+    // d. An open interval between the last point and +infinity.
     List<SegmentNode> buildElementaryIntervals(List<Segment> segments) {
         List<SegmentNode> nodeList = new ArrayList<>();
         List<Integer> endpoints = new ArrayList<>();
@@ -54,36 +92,33 @@ public class SegmentTree {
         return nodeList;
     }
 
-    // assume left and right are adjacent
+    // Assume left and right intervals are in order and are combinable according
+    // to open intervals and closed intervals semantics.
     Interval combineNeighboringIntervals(Interval left, Interval right) {
         return new Interval(left.getStart(), right.getEnd(),
                 left.getClosedStart(), right.getClosedEnd());
     }
 
-    void insertInterval(SegmentNode node, Segment segment) {
-        // If the segment's interval contains the entire Interval of the node,
-        // it will be associated with that node.
-        // We return when the highest node is associated.
-        Interval interval = segment.getXInterval();
-        if (interval.contains(node.mid)) {
-            node.associatedSegments.add(segment);
-            return;
-        }
-        if (interval.intersects(node.left.mid)) {
-            insertInterval(node.left, segment);
-        }
-        if (node.right != null && interval.intersects(node.right.mid)) {
-            insertInterval(node.right, segment);
-        }
-    }
-    
+    // Find the arbitrary segments that intersect the query line.
+    // a. Start with the X coordinate of the query line.
+    // b. If the canonical set of the node is not null, find in the
+    // single-dimensional range tree all the points within the window
+    // covering all the points within the Y range. The start or end points
+    // represent segments that will intersect the query line.
+    // c. Visit the subtree containing query line's X coordinate if any.
+    //
+    // Caveat::
+    // This implementation and much of the theory glosses over the fact that
+    // the one-dimensional range query is not sufficient to identify the
+    // arbitrary oriented segments intersecting the query line.
+    // To correctly do this we need to compute the intersection points for
+    // the segments with the query line.
+    // This means that part is no O (logn + k), k is count of added segments.
+    // Open Question:: Why theory glosses over this except for one paper.
     void findSegments(SegmentNode node, QueryLine queryLine,
                       List<Segment> segments) {
-        if (node == null) {
-            return;
-        }
+        // Note we dont have a node null check as this is unexpected.
         int queryX = queryLine.getX();
-
         // A node may have no segments associated with it.
         if (node.canonicalSet != null) {
             // We actually need to test for the point of intersection of the
@@ -98,31 +133,46 @@ public class SegmentTree {
             for (Point point : points) {
                 uniqueSegments.add(node.pointToSegmentMap.get(point));
             }
+            // We may need to filter the segments that really intersect the
+            // line. Is it possible due to the non-crossing nature of these
+            // segments, the time complexity still remains 0(logn + k).
             segments.addAll(uniqueSegments);
         }
-
-        // Should we traverse left or right?
-        if (node.left != null && node.left.mid.contains(new Interval(queryX,
-                queryX))) {
+        if (node.left != null &&
+            node.left.midInterval.contains(new Interval(queryX, queryX))) {
             findSegments(node.left, queryLine, segments);
-        } else {
+        } else if (node.right != null) {
+            // If we did not find queryX in the left subtree interval it
+            // should be in the right subtree interval.
             findSegments(node.right, queryLine, segments);
         }
     }
 
+    // The canonical set of a node contains the segments start and end points
+    // of the associated segments for a node.
+    // Its purpose is for quick execution of the windowing query.
+    //
+    // NOTE:
+    // Here we are only querying with the vertical edge of the window with the
+    // expectation taht the logic could be extended to cover all window edges.
     void buildCanonicalSet(SegmentNode node) {
         if (node == null) {
             return;
         }
-        TreeSet<Point> points = new TreeSet<>(
-                Utils.getPointYComparator());
+        List<Point> points = new ArrayList<>();
         for (Segment segment: node.associatedSegments) {
             points.add(segment.getStart());
             points.add(segment.getEnd());
             node.pointToSegmentMap.put(segment.getStart(), segment);
             node.pointToSegmentMap.put(segment.getEnd(), segment);
         }
+        // The canonical set is built on the Y coordinates, so we can filter
+        // only the found intervals that intersect with the query line and have
+        // have Y coordinates within the query line's Y coordinate range.
+        // Note that this is the key differentiator from the interval tree, in
+        // which case the axis parallel-ness made this check unnecessary.
         if (!points.isEmpty()) {
+            Collections.sort(points, Utils.getPointYComparator());
             node.canonicalSet =
                     singleDimensionalRangeTree.build(new ArrayList<>(points),
                             /*orderByX=*/ false);
@@ -131,48 +181,79 @@ public class SegmentTree {
         buildCanonicalSet(node.right);
     }
 
+
+    // Repeated for easier correlation with the implementation.
+    // For each interval do the following::
+    // a. Starting from segment tree's root, find the highest level node whose
+    // interval is completely covered by the input interval. Add the input
+    // interval to this node and stop the search.
+    // b. If the node's interval is not covered by the input interval, find
+    // if the input interval intersects the left child node's interval and if
+    // so repeat the process with the left node. Similarly check if the input
+    // interval intersects the right child node's interval and if so repeat
+    // the process with the right node.
+    void insertInterval(SegmentNode node, Segment segment) {
+        // If the segment's interval contains the entire Interval of the node,
+        // it will be associated with that node.
+        // We return when the highest node is associated.
+        Interval interval = segment.getXInterval();
+        if (interval.contains(node.midInterval)) {
+            node.associatedSegments.add(segment);
+            return;
+        }
+        // Every non leaf node must have a left child but not necessarily a
+        // right child.
+        if (interval.intersects(node.left.midInterval)) {
+            insertInterval(node.left, segment);
+        }
+        if (node.right == null) {
+            return;
+        }
+        if (interval.intersects(node.right.midInterval)) {
+            insertInterval(node.right, segment);
+        }
+    }
+
+    // Build the segment tree starting from elementary intervals.
     SegmentNode build(List<Segment> segments) {
         List<SegmentNode> nodeList = buildElementaryIntervals(segments);
         if (nodeList.isEmpty()) {
             return null;
         }
 
-        // build the segment tree in bottom up order for each level.
+        // Build the segment tree in bottom up order for each level.
         // Address the special handling of the single child usecase.
         while (nodeList.size() > 1) {
             List<SegmentNode> parentNodeList = new ArrayList<>();
+            // Address all but the last single child if any.
             for (int i = 0; i < nodeList.size()/2; i++) {
+                SegmentNode leftChild = nodeList.get(2*i);
+                SegmentNode rightChild = nodeList.get(2*i+1);
                 SegmentNode parent =
                         new SegmentNode(combineNeighboringIntervals(
-                                nodeList.get(2*i).mid,
-                                nodeList.get(2*i+1).mid));
-                parent.left = nodeList.get(2*i);
-                parent.right = nodeList.get(2*i+1);
+                                leftChild.midInterval, rightChild.midInterval));
+                parent.left = leftChild;
+                parent.right = rightChild;
                 parentNodeList.add(parent);
             }
-
-            // for odd numbered children.
+            // For single child parent.
             if (nodeList.size() % 2 != 0) {
-                SegmentNode parent = new SegmentNode(nodeList.getLast().mid);
-                parent.left = nodeList.getLast();
+                SegmentNode lastChild = nodeList.getLast();
+                SegmentNode parent = new SegmentNode(lastChild.midInterval);
+                parent.left = lastChild;
                 parentNodeList.add(parent);
             }
             nodeList = parentNodeList;
         }
 
         SegmentNode root = nodeList.getFirst();
-
-        // We now insert the segments into the canonical sets which are to be
-        // 1 dimensional Range trees on the Y coordinate.
-        // Could we use the same nomenclature as before for point.x ~
-        // interval.start and point.y ~ interval.end ?
+        // Insert the X intervals of the segments into the canonical sets which
+        // are one-dimensional Range trees on the Y coordinate.
         for (Segment segment: segments) {
             insertInterval(root, segment);
         }
-
         // The canonical set will allow optimal windowing searches.
         buildCanonicalSet(root);
-
         return root;
     }
 
@@ -210,6 +291,8 @@ public class SegmentTree {
         }
 
         QueryLine queryLine = new QueryLine(9, 10, 40);
+        System.out.println("Query Line::");
+        System.out.println(queryLine);
         List<Segment> outputSegments = new ArrayList<>();
         segmentTree.findSegments(root, queryLine, outputSegments);
         System.out.println("Output segments:");
